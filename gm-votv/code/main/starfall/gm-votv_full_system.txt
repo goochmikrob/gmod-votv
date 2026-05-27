@@ -55,6 +55,7 @@ if SERVER then
         v:setJumpPower(160)
         v:setWalkSpeed(160)
         v:setRunSpeed(240 - (v:getHealth() < 20 and 70 or 0))
+        v:setCrouchedWalkSpeed(0.6)
         
     end
     
@@ -65,7 +66,7 @@ if SERVER then
             v:setJumpPower(160 - (v:getHealth() < 20 and 160 or 0))
             v:setWalkSpeed(180 - (v:getHealth() < 20 and 60 or 0) )
             v:setRunSpeed(260 - (v:getHealth() < 20 and 140 or 0) )
-            v:setCrouchedWalkSpeed( 100 - (v:getHealth() < 20 and 30 or 0) )
+            v:setCrouchedWalkSpeed( 0.6 - (v:getHealth() < 20 and 0.2 or 0) )
             
             if v:getHealth() < 20 and v:getHealth() > -1 then
                 
@@ -88,34 +89,60 @@ if SERVER then
     local FOOD = 
     {
         {
-            name = "burger1",
-            model = "models/foodnhouseholditems/burgergtasa.mdl",
+            name = "MRE",
+            model = "models/meercat/mre/mre.mdl",
             power = 4.7,
-            times = 4
+            times = 4,
+            class = "food",
         },   
         
         {
-            name = "burger2",
-            model = "models/foodnhouseholditems/burgersims2.mdl",
+            name = "SHROOM",
+            model = "models/meercat/shrooms/shroom1.mdl",
             power = 4.7,
-            times = 4
+            times = 4,
+            class = "food",
         },   
             
         {
-            name = "burger3",
-            model = "models/foodnhouseholditems/burgergtaiv.mdl",
-            power = 4.7,
-            times = 4
+            name = "SHROOM2",
+            model = "models/meercat/shrooms/shroom2.mdl",
+            power = 2,
+            times = 1,
+            class = "food",
         },
         
         {
-            name = "cheese1",
-            model = "models/foodnhouseholditems/cheesewheel1b.mdl",
-            power = 3,
-            times = 6
+            name = "SHROOM3",
+            model = "models/meercat/shrooms/shroom3.mdl",
+            power = 2.5,
+            times = 1,
+            class = "food",
+        },
+        
+        {
+            name = "SHROOM4",
+            model = "models/meercat/shrooms/shroom5.mdl",
+            power = 4,
+            times = 1,
+            class = "food",
+        },
+        
+        {
+            name = "SHROOM5",
+            model = "models/meercat/shrooms/shroom6.mdl",
+            power = 1,
+            times = 2,
+            class = "food",
+        },
+        
+        {
+            name = "flash_battery",
+            model = "models/meercat/batteries/batteries1.mdl",
+            power = 100,
+            times = 100,
+            class = "battery"
         }
-           
-           
     }
     
     hook.add("PlayerSay", "MAIN_COMMAND_HOOK", function(ply, text, teamChat) 
@@ -152,13 +179,13 @@ if SERVER then
             
             if v.model == mdl_name then 
                 
-                return { v.times, v.power }
+                return  v.times, v.power, v.class 
                 
             end
              
         end
         
-        return { 0, 0 }
+        return 0, 0, nil
         
     end
     
@@ -168,6 +195,16 @@ if SERVER then
             
         net.start("STAMINA_SV_CHANGE")
         net.writeFloat( num )
+        net.send( pl )
+        
+    end
+    
+    local function sendNotification( pl, str, type )
+        
+        if not isValid( pl ) or not pl:isPlayer() then return end
+        
+        net.start("NOTIFY")
+        net.writeTable( {type, str} )
         net.send( pl )
         
     end
@@ -223,29 +260,158 @@ if SERVER then
         
     end)
     
+    local function UpdateUsables()
+        
+        local ents = find.all()
+        
+        for _, ent in ipairs(ents) do
+            
+            if not isValid(ent) then continue end
+            
+            if ent.uniqueClass ~= nil then return end
+            
+            local mdl = ent:getModel()
+            local times, power, vclass = findFoodInTable(mdl)
+            
+            if times ~= 0 then
+                
+                ent.times = times
+                ent.maxtimes = times
+                ent.power = power
+                ent.uniqueClass = "usable"
+                ent.usableType = vclass
+                
+            end
+            
+        end
+        
+    end
+
+    UpdateUsables()
+    
+    timer.create("UPD_USABLES", 2, 0, UpdateUsables)
+    
     local data = {}
     
     timer.create("_food_Cycle", 0.1, 0, function()
         
-        for _, v in ipairs(find.allPlayers()) do
+        local players = find.allPlayers()
+        
+        for _, v in ipairs(players) do
+            if not isValid(v) then continue end
             
             local ae = v:getEyeTrace().Entity
+            local times, power, vclass = 0, 0, nil
             
-            data = {
-                
+            if isValid(ae) then
+                times = ae.times or 0
+                power = ae.power or 0
+                //     times/power,   
+                if times == 0 then
+                    times, power, vclass = findFoodInTable(ae:getModel())
+                else
+                    vclass = ae.usableType or "food"
+                end
+            end
+            
+            local data = {
                 ae,
-                ( isValid(ae) and ae:getPos():getDistance( v:getPos() ) or 0 ),
-                ( isValid(ae) and ae:getModel() or "unknown" ),
-                ( isValid(ae) and findFoodInTable( tostring( ae:getModel()) )[1] or 0),
-                ( isValid(ae) and findFoodInTable( tostring( ae:getModel()) )[2] or 0),
-                ( isValid(ae) and ae:getPos() or Vector(0) ),
-                ( isValid(ae) and tostring(ae:entIndex()) or 0)
-                    }
-                    
-            net.start("food_net")
-            net.writeTable( data )
-            net.send( v )
+                isValid(ae) and ae:getPos():getDistance(v:getPos()) or 0,
+                isValid(ae) and ae:getModel() or "unknown",
+                times,
+                power,
+                isValid(ae) and ae:getPos() or Vector(0),
+                isValid(ae) and tostring(ae:entIndex()) or "0",
+                findFoodInTable(isValid(ae) and ae:getModel() or ""),
+                vclass,
+                maxtimes
+            }
             
+            net.start("food_net")
+            net.writeTable(data)
+            net.send(v)
+            
+        end
+        
+    end)
+    
+    timer.create("FoodCycle_CL->SV",0.75,0,function()
+        
+        net.start("Net_CallbackFOOD")
+        net.send()
+        
+        net.start("Net_CallbackSTAMINA")
+        net.send()
+        
+        
+    end)
+    
+    local b64d = http.base64Decode
+    
+    local NotifyMSGs =
+    {
+        NOT_HUNGRY = b64d("0K8g0L3QtSDRhdC+0YfRgyDQtdGB0YLRjA=="),
+        NOT_TIRED = b64d("0K8g0L3QtSDRhdC+0YfRgyDRgdC/0LDRgtGM"),
+        TOO_TIRED_RUN = b64d("0K8g0YHQu9C40YjQutC+0Lwg0YPRgdGC0LDQuywg0YfRgtC+0LHRiyDQsdC10LbQsNGC0Yw="),
+        TOO_TIRED_INJ = b64d("0K8g0YHQu9C40YjQutC+0Lwg0YDQsNC90LXQvSwg0YfRgtC+0LHRiyDQsdC10LbQsNGC0Yw=") 
+    }
+        
+    net.receive("sv_food",function()
+        
+        local hunger = net.readFloat()
+        local pl = net.readEntity()
+        
+        pl.food = hunger
+        
+    end)
+    
+    net.receive("sv_stamina", function()
+        
+        local stam = net.readFloat()
+        local pl = net.readEntity()
+        
+        pl.stamina = stam
+            
+    end)
+    
+    net.receive("_use", function()
+        
+        local netstr = net.readInt(32)
+        local pl = net.readEntity()
+        
+        local n_entID = tonumber( netstr ) 
+        
+        local n_bitenEnt = entity(n_entID)
+        
+        if not isValid( n_bitenEnt ) then return end
+        
+        n_bitenEnt:setFrozen( true )
+        if timer.exists("unfreeze") then timer.remove("unfreeze") else timer.create("ent_unfreeze",0.1,0,function() if isValid( n_bitenEnt ) then n_bitenEnt:setFrozen(false) timer.remove("ent_unfreeze") end end) end
+        
+        if n_bitenEnt.times ~= nil then
+            
+            if n_bitenEnt.usableType == "food" then
+            
+                if pl.food < 90 then    
+                                    
+                    n_bitenEnt.times = n_bitenEnt.times - 1
+                    n_bitenEnt:emitSound( "physics/flesh/flesh_squishy_impact_hard"..math.random(1,4)..".wav",100,100 )
+                    addHungerManual( pl, n_bitenEnt.power )
+                        
+                    if n_bitenEnt.times <= 0 then n_bitenEnt:remove() end
+                        
+                else
+                
+                    sendNotification( pl, NotifyMSGs.NOT_HUNGRY, 3 )
+                
+                end
+                
+            elseif n_bitenEnt.usableType == "battery" then
+                
+                
+                
+            end
+         
         end
         
     end)
@@ -259,9 +425,9 @@ if CLIENT then
     local GMVL_own_PlsCount = 0
     local GMVL_own_DrawDebug = true
     local GAME_MONEY = 0
-    local LOCAL_Hunger  = 100.0
+    local LOCAL_Hunger  = 40.0
     local LOCAL_Stamina = 100.0
-    local GAME_FLASHLIGHT = 1.0
+    local GAME_FLASHLIGHT = 1.2
     local random = math.random
     local HEALTH_ALPHA = 0
     local dmgTKN = 0
@@ -269,6 +435,7 @@ if CLIENT then
     local random_command = ""
     local id = 0
     local allowed_Flash = true
+    local use_type = "hold"
     
     local injuredPlayers = {}
     
@@ -296,6 +463,24 @@ if CLIENT then
         random_command = commands[ id ]
         
     end    
+    
+    net.receive("Net_CallbackFOOD", function()
+        
+        net.start("sv_food")
+        net.writeFloat( LOCAL_Hunger )
+        net.writeEntity( player() )
+        net.send()
+            
+    end)
+    
+    net.receive("Net_CallbackSTAMINA", function()
+        
+        net.start("sv_stamina")
+        net.writeFloat( LOCAL_Stamina )
+        net.writeEntity( player() )
+        net.send()
+            
+    end)
     
     net.receive("STAMINA_SV_CHANGE", function() local num = net.readFloat() LOCAL_Stamina = LOCAL_Stamina + num end)
     net.receive("HUNGER_SV_CHANGE", function() local num = net.readFloat() LOCAL_Hunger = LOCAL_Hunger + num end)
@@ -350,15 +535,25 @@ if CLIENT then
     
     hook.add("InputPressed", "", function(button) 
         
-        if button == KEY.E then
+        if button == KEY.E and not input.isKeyDown(KEY.CTRL) then
             
-            if aim_entity_data[7] ~= 0 then
+            if aim_entity_data[7] ~= 0 and aim_entity_data[7] ~= "0" then
                 
-                net.start("_bite")
-                net.writeTable( { aim_entity_data[7] } )
-                net.send()
-                
+                if use_type == "use" then
+                        
+                    net.start("_use")
+                    net.writeInt(tonumber(aim_entity_data[7]), 32)
+                    net.writeEntity( player() )
+                    net.send()
+                    
+                end
+                    
             end
+            
+        elseif input.isKeyDown(KEY.CTRL) and button == KEY.E then
+            
+            USE_TYPE_BOOL = !USE_TYPE_BOOL
+            use_type = USE_TYPE_BOOL == true and "use" or "hold"
             
         end
             
@@ -376,6 +571,39 @@ if CLIENT then
         
         print_funcs.InGame(str1,col1," ",tostring(net_num)," points ",Color(255,255,255),"from game balance. ",Color(200,200,50),"Reason: "..tostring(net_res))
         player():emitSound("friends/message.wav",100,100)
+        
+    end)
+    
+    net.receive("NOTIFY", function()
+        
+        local tbl = net.readTable()
+        
+        local type = tbl[1]
+        local msg = tbl[2]
+        
+        notification.addLegacy(msg, type, 5 + math.clamp(string.len(msg)*0.1, 0, 7))
+        
+        if type == NOTIFY.UNDO then
+            
+            player():emitSound("garrysmod/content_downloaded.wav",100,100)    
+            
+        elseif type == NOTIFY.HINT then
+            
+            player():emitSound("buttons/blip1.wav",100,100)
+            
+        elseif type == NOTIFY.ERROR then
+            
+            player():emitSound("resource/warning.wav", 100, 100)
+            
+        elseif type == NOTIFY.GENERIC then
+            
+            player():emitSound("ui/buttonclick.wav",100,100)
+            
+        elseif type == NOTIFY.CLEANUP then
+            
+            player():emitSound("garrysmod/content_downloaded.wav",100,100)
+            
+        end
         
     end)
     
@@ -471,7 +699,7 @@ if CLIENT then
         
         if HEALTH_ALPHA > 0 then                 HEALTH_ALPHA = HEALTH_ALPHA - 10 end
         
-    end)
+    end)    
     
     hook.add("OnPlayerJump", "", function(ply, speed) 
         
@@ -525,7 +753,8 @@ if CLIENT then
                 
                 render.setColor(colors.blank)
                     render.drawSimpleText( (HUD_x * 0.015), (HUD_y * 0.015), tostring(GAME_MONEY) ) 
-                
+                    render.drawSimpleText( (HUD_x * 0.015), (HUD_y * 0.015)+32, "Key E: "..use_type) 
+                    
                 render.setColor(colors.GRN1)
                     render.drawSimpleText( (HUD_x * 0.9), (HUD_y * 0.015), "Fl: "..string.format("%.1f", GAME_FLASHLIGHT).."%"  ) 
                     
@@ -552,10 +781,14 @@ if CLIENT then
                 local ent_pos = aim_entity_data[6]
                 
                 local xx1, yy1 = ent_pos:toScreen().x, ent_pos:toScreen().y
-                
+
+                render.setColor( Color(50,50,50) )
+                render.drawRectOutline( xx1-38, yy1-38, 80, 80, 3 )                
+
                 render.setColor( Color(255,100,0) )
-                render.drawRectOutline( xx1-40, yy1-40, 80, 80, 1 )            
-    
+                render.drawRectOutline( xx1-40, yy1-40, 80, 80, 3 )             
+                
+                render.drawText(xx1 + 60, yy1 - 45, ent_times.."/"..aim_entity_data[8] )
                 
             end
                    
