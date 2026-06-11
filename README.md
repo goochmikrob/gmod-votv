@@ -32,6 +32,12 @@ Just a server where things beep at night and someone is definitely hiding in the
 
 ---
 
+## ⬇️ GM-VoTV Installer
+
+Download gm_votv_installer.py file and execute it on your device.
+Installer would download all the fonts and UI Library to your Garry's Mod
+**Admin Rights are required.**
+
 > [!WARNING]
 > This project is a work of passion, not a commercial product. 
 > All trademarks, lore elements, and concepts from Voices of the Void belong to their original creator Egor 'Korovex' Rezenov.
