@@ -59,7 +59,7 @@ if SERVER then
         
     end
     
-    timer.create("SV_2sec_Check", 2, 0, function()
+    timer.create("PlayerMovementApply", 15, 0, function()
     
         for _, v in ipairs(find.allPlayers()) do
             
@@ -185,7 +185,7 @@ if SERVER then
              
         end
         
-        return 0, 0, nil
+        return 0, 0, ""
         
     end
     
@@ -268,7 +268,8 @@ if SERVER then
             
             if not isValid(ent) then continue end
             
-            if ent.uniqueClass ~= nil then return end
+            if ent.uniqueClass ~= nil then continue end --Leaving that as "return" would left new spawned entities without subparameters.
+
             
             local mdl = ent:getModel()
             local times, power, vclass = findFoodInTable(mdl)
