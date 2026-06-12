@@ -310,7 +310,7 @@ if SERVER then
 			local ent = entity(pendingEntities[i])
 
 			if isValid(ent) then
-			
+
 				local mdl = ent:getModel()
 				local times, power, vclass = findFoodInTable(mdl)
 				if times ~= 0 then
@@ -326,7 +326,7 @@ if SERVER then
 			table.remove(pendingEntities, i)
 			processed = processed + 1
 
-			if processed >= 50 then break end -- Обрабатывать не более 50 за раз
+			if processed >= 50 then break end
 		end
 
 	end)
@@ -374,18 +374,7 @@ if SERVER then
         end
         
     end)
-    
-    timer.create("FoodCycle_CL->SV",0.75,0,function()
-        
-        net.start("Net_CallbackFOOD")
-        net.send()
-        
-        net.start("Net_CallbackSTAMINA")
-        net.send()
-        
-        
-    end)
-    
+
     local b64d = http.base64Decode
     
     local NotifyMSGs =
@@ -396,24 +385,28 @@ if SERVER then
         TOO_TIRED_INJ = b64d("0K8g0YHQu9C40YjQutC+0Lwg0YDQsNC90LXQvSwg0YfRgtC+0LHRiyDQsdC10LbQsNGC0Yw=") 
     }
         
-    net.receive("sv_food",function()
+	--[[
         
-        local hunger = net.readFloat()
+        net.start("sv_stats_Update")
+        net.writeTable({LOCAL_Hunger,LOCAL_Stamina,GAME_FLASHLIGHT})
+        net.writeEntity( player() )
+
+	]]
+
+    net.receive("sv_stats_Update",function()
+        
+        local tbl = net.readTable()
+
+		local hunger,stam,flash = tbl[1],tbl[2],tbl[3]
+
         local pl = net.readEntity()
         
         pl.food = hunger
-        
-    end)
-    
-    net.receive("sv_stamina", function()
-        
-        local stam = net.readFloat()
-        local pl = net.readEntity()
-        
         pl.stamina = stam
-            
+		pl.flashlight = flash
+
     end)
-    
+
     net.receive("_use", function()
         
         local netstr = net.readInt(32)
@@ -448,7 +441,17 @@ if SERVER then
                 
             elseif n_bitenEnt.usableType == "battery" then
                 
-                
+                local currentCharge = n_bitenEnt.power 
+				local playerCharge = pl.flashlight
+
+				net.start("flashlight_MANUAL_UPDATE")
+				net.writeFloat(currentCharge)
+				net.send( pl )
+
+				n_bitenEnt.power = playerCharge
+				n_bitenEnt.times = playerCharge
+				
+				sendNotification( pl, "Flashlight battery changed: "..currentCharge.."/100.0",3)
                 
             end
          
@@ -466,7 +469,7 @@ if CLIENT then
     local GMVL_own_DrawDebug = true
     local GAME_MONEY = 0
     local LOCAL_Hunger  = 40.0
-    local LOCAL_Stamina = 100.0
+    local LOCAL_Stamina = 10.0
     local GAME_FLASHLIGHT = 1.2
     local random = math.random
     local HEALTH_ALPHA = 0
@@ -504,19 +507,10 @@ if CLIENT then
         
     end    
     
-    net.receive("Net_CallbackFOOD", function()
+    timer.create("regularUpdating_FS",1,0,function()
         
-        net.start("sv_food")
-        net.writeFloat( LOCAL_Hunger )
-        net.writeEntity( player() )
-        net.send()
-            
-    end)
-    
-    net.receive("Net_CallbackSTAMINA", function()
-        
-        net.start("sv_stamina")
-        net.writeFloat( LOCAL_Stamina )
+        net.start("sv_stats_Update")
+        net.writeTable({LOCAL_Hunger,LOCAL_Stamina,GAME_FLASHLIGHT})
         net.writeEntity( player() )
         net.send()
             
@@ -647,6 +641,14 @@ if CLIENT then
         
     end)
     
+	net.receive("flashlight_MANUAL_UPDATE",function()
+
+		local float = net.readFloat()
+
+		GAME_FLASHLIGHT = float
+	
+	end)
+
     net.receive("food_net", function()
         
         aim_entity_data = net.readTable()
@@ -663,7 +665,7 @@ if CLIENT then
             
         --]]
         
-        printMessage(2, tostring( aim_entity_data[7] ) )
+        --printMessage(2, tostring( aim_entity_data[7] ) )
         
     end)
     
@@ -727,9 +729,9 @@ if CLIENT then
             
         if GAME_staminaCounter < 100 then
             
-            GAME_staminaCounter = GAME_staminaCounter + 1 + (player():isSprinting() and 10 or 0)
+            GAME_staminaCounter = math.clamp(GAME_staminaCounter + 1 + (player():isSprinting() and 10 or 0),0.5,100.0)
                 
-        else GAME_staminaCounter = 0             LOCAL_Stamina = LOCAL_Stamina - 0.1 end
+        else GAME_staminaCounter = 0             LOCAL_Stamina = math.clamp(LOCAL_Stamina - 0.1,0.5,100.0) end
         
         if GAME_hungerCounter < 150 then
            
@@ -834,7 +836,7 @@ if CLIENT then
                 RNDR.setColor( Color(255,100,0) )
                 render.drawRectOutline( xx1-40, yy1-40, 80, 80, 3 )             
                 
-                RNDR.draw_Text(xx1 + 60, yy1 - 45, ent_times.."/"..aim_entity_data[8] )
+                RNDR.draw_Text(xx1 + 60, yy1 - 45, string.format("%.1f",ent_times).."/"..string.format("%.1f",aim_entity_data[8]) )
                 
             end
                    
