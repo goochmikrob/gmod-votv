@@ -290,11 +290,50 @@ if SERVER then
 
     UpdateUsables()
     
-    timer.create("UPD_USABLES", 2, 0, UpdateUsables)
+	local pendingEntities = {}
+
+	hook.add("OnEntityCreated", "", function(ent)
+
+		if not isValid(ent) then return end
+		table.insert(pendingEntities, ent:entIndex())
+
+	end)
+
+	timer.create("ProcessPendingEntities", 0.1, 0, function()
+
+		if #pendingEntities == 0 then return end
+		
+		local processed = 0
+
+		for i = #pendingEntities, 1, -1 do
+
+			local ent = entity(pendingEntities[i])
+
+			if isValid(ent) then
+			
+				local mdl = ent:getModel()
+				local times, power, vclass = findFoodInTable(mdl)
+				if times ~= 0 then
+					ent.times = times
+					ent.maxtimes = times
+					ent.power = power
+					ent.uniqueClass = "usable"
+					ent.usableType = vclass
+				end
+
+			end
+
+			table.remove(pendingEntities, i)
+			processed = processed + 1
+
+			if processed >= 50 then break end -- Обрабатывать не более 50 за раз
+		end
+
+	end)
     
     local data = {}
     
-    timer.create("_food_Cycle", 0.1, 0, function()
+    timer.create("_food_Cycle", 0.35, 0, function()
         
         local players = find.allPlayers()
         
@@ -737,6 +776,12 @@ if CLIENT then
         dmgTKN = net.readFloat()
         
     end)
+
+	local RNDR = {}
+	RNDR.draw_sText = render.drawSimpleText
+	RNDR.draw_Text = render.drawText
+	RNDR.setFont = render.setFont
+	RNDR.setColor = render.setColor
     
     timer.simple(1, function()
     
@@ -745,33 +790,33 @@ if CLIENT then
             local HUD_x, HUD_y = render.getGameResolution()
             local scrW2, scrH2 = HUD_x/2, HUD_y/2
             
-            render.setColor( Color(255,255,25, 100) )
+            RNDR.setColor( Color(255,255,25, 100) )
             render.drawRect( scrW2-2.5, scrH2-2.5, 5, 5 )  
             
             --render.drawRect(x, y, w, h)
             
-            render.setFont( fonts.DEF_vals )
+            RNDR.setFont( fonts.DEF_vals )
                 
-                render.setColor(colors.blank)
-                    render.drawSimpleText( (HUD_x * 0.015), (HUD_y * 0.015), tostring(GAME_MONEY) ) 
-                    render.drawSimpleText( (HUD_x * 0.015), (HUD_y * 0.015)+32, "Key E: "..use_type) 
+                RNDR.setColor(colors.blank)
+                    RNDR.draw_sText( (HUD_x * 0.015), (HUD_y * 0.015), tostring(GAME_MONEY) ) 
+                    RNDR.draw_sText( (HUD_x * 0.015), (HUD_y * 0.015)+32, "Key E: "..use_type) 
                     
-                render.setColor(colors.GRN1)
-                    render.drawSimpleText( (HUD_x * 0.9), (HUD_y * 0.015), "Fl: "..string.format("%.1f", GAME_FLASHLIGHT).."%"  ) 
+                RNDR.setColor(colors.GRN1)
+                    RNDR.draw_sText( (HUD_x * 0.9), (HUD_y * 0.015), "Fl: "..string.format("%.1f", GAME_FLASHLIGHT).."%"  ) 
                     
-                render.setColor(colors.BLU2)
-                    render.drawSimpleText( (HUD_x * 0.015), (HUD_y * 0.85)+20, "S: "..string.format("%.1f", LOCAL_Stamina).."%"  ) 
+                RNDR.setColor(colors.BLU2)
+                    RNDR.draw_sText( (HUD_x * 0.015), (HUD_y * 0.85)+20, "S: "..string.format("%.1f", LOCAL_Stamina).."%"  ) 
                     
-                render.setColor(colors.YLW1)
-                    render.drawSimpleText( (HUD_x * 0.015), (HUD_y * 0.85)-12, "F: "..string.format("%.1f", LOCAL_Hunger).."%"  ) 
+                RNDR.setColor(colors.YLW1)
+                    RNDR.draw_sText( (HUD_x * 0.015), (HUD_y * 0.85)-12, "F: "..string.format("%.1f", LOCAL_Hunger).."%"  ) 
                 
-                render.setColor( Color( math.clamp(player():getHealth() < 20 and math.sin(timer.curtime()*15)*23 or 0 ,0,55) ,0,0, math.clamp( (255 - player():getHealth()*2.5 - (player():getHealth() < 20 and math.sin(timer.curtime()*14)*30 or 0)), 0,190 )) )
+                RNDR.setColor( Color( math.clamp(player():getHealth() < 20 and math.sin(timer.curtime()*15)*23 or 0 ,0,55) ,0,0, math.clamp( (255 - player():getHealth()*2.5 - (player():getHealth() < 20 and math.sin(timer.curtime()*14)*30 or 0)), 0,190 )) )
                     render.drawRect(0,0,HUD_x,HUD_y)
                 
                 if HEALTH_ALPHA > 0 then
                     
-                    render.setColor(Color(200,50,50,HEALTH_ALPHA))
-                    render.drawText( HUD_x / 2, HUD_y / 6, "-".. tostring( math.round( dmgTKN, 0 ) ) , TEXT_ALIGN.CENTER)
+                    RNDR.setColor(Color(200,50,50,HEALTH_ALPHA))
+                    RNDR.draw_Text( HUD_x / 2, HUD_y / 6, "-".. tostring( math.round( dmgTKN, 0 ) ) , TEXT_ALIGN.CENTER)
                      
                 end        
                     
@@ -783,13 +828,13 @@ if CLIENT then
                 
                 local xx1, yy1 = ent_pos:toScreen().x, ent_pos:toScreen().y
 
-                render.setColor( Color(50,50,50) )
+                RNDR.setColor( Color(50,50,50) )
                 render.drawRectOutline( xx1-38, yy1-38, 80, 80, 3 )                
 
-                render.setColor( Color(255,100,0) )
+                RNDR.setColor( Color(255,100,0) )
                 render.drawRectOutline( xx1-40, yy1-40, 80, 80, 3 )             
                 
-                render.drawText(xx1 + 60, yy1 - 45, ent_times.."/"..aim_entity_data[8] )
+                RNDR.draw_Text(xx1 + 60, yy1 - 45, ent_times.."/"..aim_entity_data[8] )
                 
             end
                    
@@ -802,8 +847,8 @@ if CLIENT then
                     
                     local vecX, vecY = vec:toScreen().x, vec:toScreen().y
                     
-                    render.setColor( Color(255, opac*21, opac*21, math.clamp( opac*127, 0, 255 ) ) )
-                    render.drawText( vecX, vecY, tostring( b64.INJURED ), TEXT_ALIGN.CENTER )
+                    RNDR.setColor( Color(255, opac*21, opac*21, math.clamp( opac*127, 0, 255 ) ) )
+                    RNDR.draw_Text( vecX, vecY, tostring( b64.INJURED ), TEXT_ALIGN.CENTER )
                     
                 end
                 
@@ -811,8 +856,8 @@ if CLIENT then
             
             if player():getHealth() < 20 and player():getHealth() > 0 then
                 
-                render.setColor( Color( 160, 0, 0 , 200) )
-                render.drawText( HUD_x / 2, HUD_y / 8.5, b64.InjCtrl, TEXT_ALIGN.CENTER )
+                RNDR.setColor( Color( 160, 0, 0 , 200) )
+                RNDR.draw_Text( HUD_x / 2, HUD_y / 8.5, b64.InjCtrl, TEXT_ALIGN.CENTER )
                 
             end
                  
@@ -820,10 +865,10 @@ if CLIENT then
             
                 if GMVL_own_DrawDebug == true then
                     
-                    render.setFont( fonts.DEBUG )
-                    render.setColor( Color( 180, 180, 180 ) )
+                    RNDR.setFont( fonts.DEBUG )
+                    RNDR.setColor( Color( 180, 180, 180 ) )
                     
-                    render.drawSimpleText( HUD_x / 1.3, HUD_y / 1.3 , "Tip: "..tostring(random_command) )
+                    RNDR.draw_sText( HUD_x / 1.3, HUD_y / 1.3 , "Tip: "..tostring(random_command) )
                     
                 end
              
