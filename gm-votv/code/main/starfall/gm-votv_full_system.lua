@@ -171,7 +171,24 @@ if SERVER then
             power = 3.3,
             times = 1,
             class = "energy_drink"
+        },
+        
+        {
+            name = "monster",
+            model = "models/foodnhouseholditems/sodacanb01.mdl",
+            power = 1.2,
+            times = 1,
+            class = "energy_drink"
+        },
+        
+        {
+            name = "pizza_full",
+            model = "models/foodnhouseholditems/pizza.mdl",
+            power = 3.3,
+            times = 6,
+            class = "food"   
         }
+        
     }
     
     hook.add("PlayerSay", "MAIN_COMMAND_HOOK", function(ply, text, teamChat) 
@@ -487,7 +504,7 @@ if SERVER then
                     
                     addStaminaManual( pl, power * 2 )
                     
-                    timer.create("Recycle",0.1,30,function()
+                    timer.create("Recycle_"..pl:entIndex(),0.1,30,function()
                         
                         if playerStamina < 99.0 then
                             
@@ -621,7 +638,7 @@ if CLIENT then
     
     hook.add("InputPressed", "", function(button) 
         
-        if button == KEY.E and not input.isKeyDown(KEY.CTRL) then
+        if button == KEY.E and not input.isKeyDown(KEY.R) then
             
             if aim_entity_data[7] ~= 0 and aim_entity_data[7] ~= "0" then
                 
@@ -636,7 +653,7 @@ if CLIENT then
                     
             end
             
-        elseif input.isKeyDown(KEY.CTRL) and button == KEY.E then
+        elseif input.isKeyDown(KEY.R) and button == KEY.E then
             
             USE_TYPE_BOOL = !USE_TYPE_BOOL
             use_type = USE_TYPE_BOOL == true and "use" or "hold"
@@ -866,13 +883,13 @@ if CLIENT then
                     RNDR.draw_sText( (HUD_x * 0.015), (HUD_y * 0.015)+32, "Key E: "..use_type) 
                     
                 RNDR.setColor(colors.GRN1)
-                    RNDR.draw_sText( (HUD_x * 0.9), (HUD_y * 0.015), "Fl: "..string.format("%.1f", GAME_FLASHLIGHT).."%"  ) 
+                    RNDR.draw_sText( (HUD_x * 0.9), (HUD_y * 0.015), "Fl: "..string.format("%.1f", math.clamp(GAME_FLASHLIGHT,0,100)).."%"  ) 
                     
                 RNDR.setColor(colors.BLU2)
-                    RNDR.draw_sText( (HUD_x * 0.015), (HUD_y * 0.85)+20, "S: "..string.format("%.1f", LOCAL_Stamina).."%"  ) 
+                    RNDR.draw_sText( (HUD_x * 0.015), (HUD_y * 0.85)+20, "S: "..string.format("%.1f", math.clamp(LOCAL_Stamina,0,100)).."%"  ) 
                     
                 RNDR.setColor(colors.YLW1)
-                    RNDR.draw_sText( (HUD_x * 0.015), (HUD_y * 0.85)-12, "F: "..string.format("%.1f", LOCAL_Hunger).."%"  ) 
+                    RNDR.draw_sText( (HUD_x * 0.015), (HUD_y * 0.85)-12, "F: "..string.format("%.1f", math.clamp(LOCAL_Hunger,0,100)).."%"  ) 
                 
                 RNDR.setColor( Color( math.clamp(player():getHealth() < 20 and math.sin(timer.curtime()*15)*23 or 0 ,0,55) ,0,0, math.clamp( (255 - player():getHealth()*2.5 - (player():getHealth() < 20 and math.sin(timer.curtime()*14)*30 or 0)), 0,190 )) )
                     render.drawRect(0,0,HUD_x,HUD_y)
