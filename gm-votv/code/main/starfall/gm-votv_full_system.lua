@@ -187,6 +187,86 @@ if SERVER then
             power = 3.3,
             times = 6,
             class = "food"   
+        },
+        
+        {
+            name = "apple_1",
+            model = "models/foodnhouseholditems/apple.mdl",
+            power = 2.1,
+            times = 2,
+            class = "food"
+        },
+        
+        {
+            name = "apple_2",
+            model = "models/foodnhouseholditems/apple1.mdl",
+            power = 2.1, 
+            times = 2,
+            class = "food"
+        },
+        
+        {
+            name = "apple_3",
+            model = "models/foodnhouseholditems/apple2.mdl",
+            power = 2.1,
+            times = 2,
+            class = "food"
+        },
+        
+        {
+            name = "baguette",
+            model = "models/foodnhouseholditems/bagette.mdl",
+            power = 2.7,
+            times = 6,
+            class = "food"
+        },
+        
+        {
+            name = "banana_single",
+            model = "models/foodnhouseholditems/bananna.mdl",
+            power = 3,
+            times = 2,
+            class = "food"
+        },
+        
+        {
+            name = "banana_groupped",
+            model = "models/foodnhouseholditems/bananna_bunch.mdl",
+            power = 3,
+            times = 9,
+            class = "food"
+        },
+        
+        {
+            name = "chicken_leg",
+            model = "models/foodnhouseholditems/mcdfriedchickenleg.mdl",
+            power = 1.8,
+            times = 1,
+            class = "food"
+        },
+        
+        {
+            name = "cookies",
+            model = "models/foodnhouseholditems/digestive.mdl",
+            power = 0.5,
+            times = 16,
+            class = "food"
+        },
+        
+        {
+            name = "cookies2",
+            model = "models/foodnhouseholditems/digestive2.mdl",
+            power = 0.5,
+            times = 16,
+            class = "food"
+        },
+        
+        {
+            name = "wrap",
+            model = "models/foodnhouseholditems/chicken_wrap.mdl",
+            power = 2.5,
+            times = 6,
+            class = "food"   
         }
         
     }
@@ -379,6 +459,13 @@ if SERVER then
 
 	end)
     
+    
+    local localize = 
+    {
+        food = b64d("0JXQtNCw"),
+        energy_drink = b64d("0K3QvdC10YDQs9C10YLQuNC6"),
+        battery = b64d("0JHQsNGC0LDRgNC10LnQutCw")
+    }
     local data = {}
     
     timer.create("_food_Cycle", 0.35, 0, function()
@@ -412,7 +499,8 @@ if SERVER then
                 isValid(ae) and tostring(ae:entIndex()) or "0",
                 findFoodInTable(isValid(ae) and ae:getModel() or ""),
                 vclass,
-                maxtimes
+                maxtimes,
+                localize[vclass]
             }
             
             net.start("food_net")
@@ -456,8 +544,22 @@ if SERVER then
         
         if not isValid( n_bitenEnt ) then return end
         
+        if n_bitenEnt.uniqueClass ~= "usable" then return end
+        
         n_bitenEnt:setFrozen( true )
-        if timer.exists("unfreeze") then timer.remove("unfreeze") else timer.create("ent_unfreeze",0.1,0,function() if isValid( n_bitenEnt ) then n_bitenEnt:setFrozen(false) timer.remove("ent_unfreeze") end end) end
+        
+        local timerName = "unfreeze_" .. n_bitenEnt:entIndex()
+        if timer.exists(timerName) then timer.remove(timerName) end
+        
+        timer.create(timerName, 3, 1, function()
+            
+            if isValid(n_bitenEnt) then
+                
+                n_bitenEnt:setFrozen(false)
+
+            end
+            
+        end)
         
         if n_bitenEnt.times ~= nil then
             
@@ -880,7 +982,7 @@ if CLIENT then
                 
                 RNDR.setColor(colors.blank)
                     RNDR.draw_sText( (HUD_x * 0.015), (HUD_y * 0.015), tostring(GAME_MONEY) ) 
-                    RNDR.draw_sText( (HUD_x * 0.015), (HUD_y * 0.015)+32, "Key E: "..use_type) 
+                    RNDR.draw_sText( (HUD_x * 0.015), (HUD_y * 0.015)+32, "Key E (R+E): "..use_type) 
                     
                 RNDR.setColor(colors.GRN1)
                     RNDR.draw_sText( (HUD_x * 0.9), (HUD_y * 0.015), "Fl: "..string.format("%.1f", math.clamp(GAME_FLASHLIGHT,0,100)).."%"  ) 
@@ -906,6 +1008,7 @@ if CLIENT then
                 local ent_dist = aim_entity_data[2]
                 local ent_times = aim_entity_data[4]
                 local ent_pos = aim_entity_data[6]
+                local ent_class = aim_entity_data[11]
                 
                 local xx1, yy1 = ent_pos:toScreen().x, ent_pos:toScreen().y
 
@@ -916,7 +1019,9 @@ if CLIENT then
                 render.drawRectOutline( xx1-40, yy1-40, 80, 80, 3 )             
                 
                 RNDR.draw_Text(xx1 + 60, yy1 - 45, string.format("%.1f",ent_times).."/"..string.format("%.1f",aim_entity_data[8]) )
-                
+                RNDR.draw_Text(xx1 + 60, yy1 - 16, aim_entity_data[11] )
+                   
+             
             end
                    
             if #injuredPlayers >= 1 then
