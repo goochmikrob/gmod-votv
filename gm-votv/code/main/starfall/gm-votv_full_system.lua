@@ -25,6 +25,8 @@
         
 --]]
 
+
+
 if SERVER then
     
     if game.isSinglePlayer() == true then throw("[GM-VoTV] Chip wouldn't work on Singleplayer! Please open the server to start the GM-VoTV") return end
@@ -59,7 +61,7 @@ if SERVER then
         
     end
     
-    timer.create("PlayerMovementApply", 15, 0, function()
+    timer.create("PlayerMovementApply", 3, 0, function()
     
         for _, v in ipairs(find.allPlayers()) do
             
@@ -67,6 +69,16 @@ if SERVER then
             v:setWalkSpeed(180 - (v:getHealth() < 20 and 60 or 0) )
             v:setRunSpeed(260 - (v:getHealth() < 20 and 140 or 0) )
             v:setCrouchedWalkSpeed( 0.6 - (v:getHealth() < 20 and 0.2 or 0) )
+            
+            if v.stamina ~= nil then
+                
+                if v.stamina < 15 then
+                    
+                    v:setRunSpeed(210 - (v:getHealth() < 20 and 60 or 0) )
+                    
+                end
+                
+            end
             
             if v:getHealth() < 20 and v:getHealth() > -1 then
                 
@@ -86,6 +98,17 @@ if SERVER then
             
     end)
     
+    local b64d = http.base64Decode
+    
+    local NotifyMSGs =
+    {
+        NOT_HUNGRY = b64d("0K8g0L3QtSDRhdC+0YfRgyDQtdGB0YLRjA=="),
+        NOT_TIRED = b64d("0K8g0L3QtSDRhdC+0YfRgyDRgdC/0LDRgtGM"),
+        TOO_TIRED_RUN = b64d("0K8g0YHQu9C40YjQutC+0Lwg0YPRgdGC0LDQuywg0YfRgtC+0LHRiyDQsdC10LbQsNGC0Yw="),
+        TOO_TIRED_INJ = b64d("0K8g0YHQu9C40YjQutC+0Lwg0YDQsNC90LXQvSwg0YfRgtC+0LHRiyDQsdC10LbQsNGC0Yw="),
+        DONT_WANT_TO = b64d("0K8g0L3QtSDRhdC+0YfRgyDRjdGC0L4g0YHQtdC50YfQsNGB")
+    }
+    
     local FOOD = 
     {
         {
@@ -99,8 +122,8 @@ if SERVER then
         {
             name = "SHROOM",
             model = "models/meercat/shrooms/shroom1.mdl",
-            power = 4.7,
-            times = 4,
+            power = 1.5,
+            times = 1,
             class = "food",
         },   
             
@@ -142,6 +165,14 @@ if SERVER then
             power = 100,
             times = 100,
             class = "battery"
+        },
+        
+        {
+            name = "redbull",
+            model = "models/foodnhouseholditems/sodacanc01.mdl",
+            power = 3.3,
+            times = 1,
+            class = "energy_drink"
         }
     }
     
@@ -253,6 +284,8 @@ if SERVER then
                 pl:applyDamage(math.random(1,2), game.getWorld(), nil, DAMAGE.CLUB)
                 pl:emitSound("physics/flesh/flesh_bloody_impact_hard1.wav", 100, 80)
                 --:applyDamage(amt, attacker, inflictor, dmgtype, pos)
+                
+                sendNotification( pl, NotifyMSGs.TOO_TIRED_INJ, 1 )
                 
             end
             
@@ -374,16 +407,6 @@ if SERVER then
         end
         
     end)
-
-    local b64d = http.base64Decode
-    
-    local NotifyMSGs =
-    {
-        NOT_HUNGRY = b64d("0K8g0L3QtSDRhdC+0YfRgyDQtdGB0YLRjA=="),
-        NOT_TIRED = b64d("0K8g0L3QtSDRhdC+0YfRgyDRgdC/0LDRgtGM"),
-        TOO_TIRED_RUN = b64d("0K8g0YHQu9C40YjQutC+0Lwg0YPRgdGC0LDQuywg0YfRgtC+0LHRiyDQsdC10LbQsNGC0Yw="),
-        TOO_TIRED_INJ = b64d("0K8g0YHQu9C40YjQutC+0Lwg0YDQsNC90LXQvSwg0YfRgtC+0LHRiyDQsdC10LbQsNGC0Yw=") 
-    }
         
 	--[[
         
@@ -403,7 +426,7 @@ if SERVER then
         
         pl.food = hunger
         pl.stamina = stam
-		pl.flashlight = flash
+		      pl.flashlight = flash
 
     end)
 
@@ -442,17 +465,49 @@ if SERVER then
             elseif n_bitenEnt.usableType == "battery" then
                 
                 local currentCharge = n_bitenEnt.power 
-				local playerCharge = pl.flashlight
-
-				net.start("flashlight_MANUAL_UPDATE")
-				net.writeFloat(currentCharge)
-				net.send( pl )
-
-				n_bitenEnt.power = playerCharge
-				n_bitenEnt.times = playerCharge
-				
-				sendNotification( pl, "Flashlight battery changed: "..currentCharge.."/100.0",3)
+            				local playerCharge = pl.flashlight
+            
+            				net.start("flashlight_MANUAL_UPDATE")
+            				net.writeFloat(currentCharge)
+            				net.send( pl )
+            
+            				n_bitenEnt.power = playerCharge
+            				n_bitenEnt.times = playerCharge
+            				
+            				sendNotification( pl, "Flashlight battery changed: "..currentCharge.."/100.0",3)
                 
+            elseif n_bitenEnt.usableType == "energy_drink" then
+                
+                local playerStamina = pl.stamina
+                
+                if playerStamina < 99.0 then
+                    
+                    local power = n_bitenEnt.power
+                    
+                    n_bitenEnt.times = n_bitenEnt.times - 1
+                    pl:emitSound( "eating_and_drinking/soda.wav",100,100 )
+                    
+                    addStaminaManual( pl, power * 2 )
+                    
+                    timer.create("Recycle",0.1,30,function()
+                        
+                        if playerStamina < 99.0 then
+                            
+                            addStaminaManual( pl, power / 6 )
+                            addHungerManual( pl, power / 96 )
+                            
+                        end
+                            
+                    end)
+                    
+                    if n_bitenEnt.times <= 0 then n_bitenEnt:remove() end
+                    
+                else
+                    
+                    sendNotification( pl, NotifyMSGs.DONT_WANT_TO, 3 )
+                    
+                end
+            
             end
          
         end
@@ -480,7 +535,16 @@ if CLIENT then
     local allowed_Flash = true
     local use_type = "hold"
     
+    local b64d = http.base64Decode
+    
     local injuredPlayers = {}
+    local NotifyMSGs =
+    {
+        NOT_HUNGRY = b64d("0K8g0L3QtSDRhdC+0YfRgyDQtdGB0YLRjA=="),
+        NOT_TIRED = b64d("0K8g0L3QtSDRhdC+0YfRgyDRgdC/0LDRgtGM"),
+        TOO_TIRED_RUN = b64d("0K8g0YHQu9C40YjQutC+0Lwg0YPRgdGC0LDQuywg0YfRgtC+0LHRiyDQsdC10LbQsNGC0Yw="),
+        TOO_TIRED_INJ = b64d("0K8g0YHQu9C40YjQutC+0Lwg0YDQsNC90LXQvSwg0YfRgtC+0LHRiyDQsdC10LbQsNGC0Yw=") 
+    }
     
     net.receive("PLAYER_INJURED", function()
         
@@ -588,6 +652,16 @@ if CLIENT then
             
             USE_TYPE_BOOL = !USE_TYPE_BOOL
             use_type = USE_TYPE_BOOL == true and "use" or "hold"
+            
+        end
+        
+        if button == KEY.SHIFT then
+            
+            if LOCAL_Stamina < 15 then
+                
+                notification.addLegacy(NotifyMSGs.TOO_TIRED_RUN, NOTIFY.HINT, 4)
+                
+            end
             
         end
             
