@@ -60,4 +60,21 @@ return function(instance)
 
     end
 
+    --- GM-VoTV Function. Sends a notification to a players screen (notification.AddLegacy)
+    -- @server
+    -- @param string text The text to display
+    -- @param number notifytype Determines the notification method (e.g. icon) for displaying the notification.
+    -- @param number length The number of seconds to display the notification for.
+    function player_methods:SendNotification( text, notifytype, length )
+
+        local ply = unwrap( self )
+
+        checkluatype( text, TYPE_STRING )
+        checkluatype( notifytype, TYPE_NUMBER )
+        checkluatype( length, TYPE_NUMBER )
+
+        ply:SendLua("notification.AddLegacy('"..text.."',"..notifytype..","..length..")")
+
+    end
+
 end
