@@ -42,14 +42,6 @@ return function(instance)
 
     end
 
-    --- GM-VoTV Function. Returns whether the flashlight of a player is on
-    -- @return boolean Is flashlight of a player is on
-    function player_methods:flashlightIsOn()
-
-        return Ply_FlashlightIsOn(unwrap(self))
-
-    end
-
     --- GM-VoTV Function. Sets if the player can toggle their flashlight. Function exists on both the server and client but has no effect when ran on the client.
     -- @param boolean canFlashlight True allows flashlight toggling
     function player_methods:allowFlashlight( canFlashlight )
