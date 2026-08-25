@@ -35,10 +35,13 @@
         TOO_TIRED_INJ = b64d("0K8g0YHQu9C40YjQutC+0Lwg0YDQsNC90LXQvSwg0YfRgtC+0LHRiyDQsdC10LbQsNGC0Yw="),
         DONT_WANT_TO = b64d("0K8g0L3QtSDRhdC+0YfRgyDRjdGC0L4g0YHQtdC50YfQsNGB")
     }
+    
+    --- starfall.QuotaRemoved()
 
 if SERVER then
     
     if game.isSinglePlayer() == true then throw("[GM-VoTV] Chip wouldn't work on Singleplayer! Please open the server to start the GM-VoTV") return end
+    if not superuser() then throw("[GM-VoTV] Chip wouldn't work without --@superuser!") return end
     
     local GM_V_funcs = {}
         GM_V_funcs.allPls = find.allPlayers
@@ -103,6 +106,14 @@ if SERVER then
         {
             name = "flash_battery",
             model = "models/meercat/batteries/batteries1.mdl",
+            power = 100,
+            times = 100,
+            class = "battery"
+        },
+        
+        {
+            name = "flash_battery2",
+            model = "models/meercat/batteries/batteries2.mdl",
             power = 100,
             times = 100,
             class = "battery"
@@ -217,7 +228,7 @@ if SERVER then
     -------------------------------------------- \/ \/ \/ START FUNCTION SETUP \/ \/ \/ --------------------------------------------
     
     local gm_votv = {}
-    
+
     gm_votv.hotCheckValid = function(pl)
         
         if not isValid( pl ) or not pl:isPlayer() then return true end
@@ -232,16 +243,6 @@ if SERVER then
             
         net.start("STAMINA_SV_CHANGE")
         net.writeFloat( num )
-        net.send( pl )
-        
-    end
-    
-    gm_votv.sendNotification = function( pl, str, type )
-        
-        if gm_votv.hotCheckValid( pl ) == true then return end
-        
-        net.start("NOTIFY")
-        net.writeTable( {type, str} )
         net.send( pl )
         
     end
@@ -345,7 +346,7 @@ if SERVER then
     gm_votv.createTimer("PlayerMovementApply", 3, 0, gm_votv.UpdateMovementParameters)
     
     
-    
+
     gm_votv.addHook("PlayerHurt", "GMVOTV_ObtainHurt", function(ply, attacker, newHealth, damageTaken) 
         
         if isValid( ply ) then net.start("injured") net.writeFloat(damageTaken) net.send(ply) end
@@ -385,7 +386,7 @@ if SERVER then
                 
                 if message == "" then message = "Test notification" end
                 
-                gm_votv.sendNotification(ply, message, notifType)
+                ply:SendNotification(message,notifType,7)
                 
             end
             
@@ -411,7 +412,7 @@ if SERVER then
                 pl:emitSound("physics/flesh/flesh_bloody_impact_hard1.wav", 100, 80)
                 --:applyDamage(amt, attacker, inflictor, dmgtype, pos)
                 
-                gm_votv.sendNotification( pl, NotifyMSGs.TOO_TIRED_INJ, 1 )
+                pl:SendNotification( NotifyMSGs.TOO_TIRED_INJ, 1, 7 )
                 
             end
             
@@ -490,7 +491,7 @@ if SERVER then
 
                 if times == 0 then
                     
-                    times, power, vclass = findFoodInTable(ae:getModel())
+                    times, power, vclass = gm_votv.findFoodInTable(ae:getModel())
                     
                 else
                     
@@ -532,24 +533,19 @@ if SERVER then
 
 
 
-    gm_votv.receiveNet("TO_SERVER_flashlight_off", function()
+    gm_votv.receiveNet("TO_SERVER_flashlight_off", function(len,ply)
         
-        local ply_id = net.readFloat()
-        
-        hook.runRemote( nil, {ply_id, "flashlight "} )
+        ply:toggleFlashlight( false )
         
     end)
     
     
     
-    gm_votv.receiveNet("flashlight_ALLOW", function()
+    gm_votv.receiveNet("flashlight_ALLOW", function(len,ply)
         
-        local tbl = net.readTable()
+        local toggle = net.readBool()
         
-        local ply_id = tbl[1]
-        local allow  = tbl[2]
-        
-        hook.runRemote( nil, {ply_id, "flashlight_enable ", allow} )
+        ply:allowFlashlight( toggle )
         
     end)
 
@@ -612,9 +608,9 @@ if SERVER then
                     if n_bitenEnt.times <= 0 then n_bitenEnt:remove() end
                         
                 else
-                
-                    gm_votv.sendNotification( pl, NotifyMSGs.NOT_HUNGRY, 3 )
-                
+
+                    pl:SendNotification( NotifyMSGs.NOT_HUNGRY, 3, 4 )
+                    
                 end
                 
             elseif n_bitenEnt.usableType == "battery" then
@@ -629,7 +625,7 @@ if SERVER then
             				n_bitenEnt.power = playerCharge
             				n_bitenEnt.times = playerCharge
             				
-            				gm_votv.sendNotification( pl, "Flashlight battery changed: "..currentCharge.."/100.0",3)
+            				pl:SendNotification("Flashlight battery changed: "..currentCharge.."/100.0",3,4)
                 
             elseif n_bitenEnt.usableType == "energy_drink" then
                 
@@ -659,7 +655,7 @@ if SERVER then
                     
                 else
                     
-                    gm_votv.sendNotification( pl, NotifyMSGs.DONT_WANT_TO, 3 )
+                    pl:SendNotification( NotifyMSGs.DONT_WANT_TO, 3, 4 )
                     
                 end
             
@@ -821,35 +817,6 @@ if CLIENT then
         
     end)
     
-    local NOTIFY_SOUNDS = {
-            
-        [NOTIFY.UNDO] = "garrysmod/content_downloaded.wav",
-        [NOTIFY.HINT] = "buttons/blip1.wav",
-        [NOTIFY.ERROR] = "resource/warning.wav",
-        [NOTIFY.GENERIC] = "ui/buttonclick.wav",
-        [NOTIFY.CLEANUP] = "garrysmod/content_downloaded.wav",
-            
-    }
-    
-    net.receive("NOTIFY", function()
-        
-        local tbl = net.readTable()
-        
-        local type = tbl[1]
-        local msg = tbl[2]
-        
-        notification.addLegacy(msg, type, 5 + math.clamp(string.len(msg)*0.1, 0, 7))
-        
-        local soundPath = NOTIFY_SOUNDS[type]
-        
-        if soundPath then
-            
-            player():emitSound(soundPath, 100, 100)
-            
-        end
-        
-    end)
-    
     net.receive("flashlight_MANUAL_UPDATE",function()
 
         local float = net.readFloat()
@@ -897,7 +864,6 @@ if CLIENT then
     local function turnOffFLASH()
         
         net.start("TO_SERVER_flashlight_off")
-        net.writeFloat( player():entIndex() )
         net.send()
         
     end
@@ -905,7 +871,7 @@ if CLIENT then
     local function allowFlash(on)
         
         net.start("flashlight_ALLOW")
-        net.writeTable( {player():entIndex(), on} )
+        net.writeBool( on )
         net.send()
         
     end
@@ -920,12 +886,12 @@ if CLIENT then
                 
                 turnOffFLASH()
                     
-                allowFlash(0)
+                allowFlash( false )
                 allowed_Flash = false
         
             else
                 
-                if allowed_Flash == false then allowed_Flash = true allowFlash( 1 ) end
+                if allowed_Flash == false then allowed_Flash = true allowFlash( true ) end
                 
             end
             
