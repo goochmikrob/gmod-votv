@@ -3,9 +3,6 @@
 **Garry's Mod → Voices of the Void**  
 A small-scale, self-contained cooperative fan project.
 
->[!WARNING]
->Project is currently in WIP state! This means any bugs or flaws are natural right now.
-
 ## 📡 About the Project
 
 This is not a remaster or a full conversion.  
@@ -15,6 +12,14 @@ Played by 2+ people. One player acts as **ASO Personnel** (events, drone control
 
 We don't copy the original mechanics 1:1.  
 We build something that *feels right* for a late-night session with friends and a cold cup of tea, yet still inspired of Voices of The Void
+
+---
+
+## 🚧 Current project state
+
+GM-VoTV is currently changing its core (from StarfallEx to raw GLua).
+All code was moved to archive. Project is restarted fully
+[23.09.2026]
 
 ---
 
@@ -37,21 +42,6 @@ Are <b>NOT</b> welcomed:
 * Dirty code (e.g. unreadable/unnamed vars or functions)
 * Undocumented tricky ways in code
 * Heavy performance-reducers (if it's unexpected)
-
----
-
-## ⬇️ Installation
-
-To run GM-VoTV on your game, follow the steps:
-1. Clone the repository
-2. Paste the <code>gm-votv/code/main/starfall/</code> into <code>garrysmod/data/starfall/</code> folder.
-3. Paste the <code>gm-votv/code/main/lua/</code> into <code>garrysmod/addons/gm-votv/</code> folder.
-4. Run concommand <code>sf_super_users_add "<your_steamid>"</code> (Yep, GM-VoTV requires <b>Starfall Superuser</b> to work)
-5. Run the GM-VoTV chip with opening the <code>gm-votv_full_system.lua</code>.
-> *Any of issues or troubles in installation or gameplay (e.g. script errors) are highly recommended to be reported in Issues. We'll help as soon as it possible.*
-
-> [!CAUTION]
-> The project's code is very sensitive for paths & filenames! <b>Do NOT rename anything until you know what you do.</b>
 
 ---
 
