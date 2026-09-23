@@ -19,15 +19,6 @@ function votv.throwError(msg,lvl)
 
 end
 
-function votv.throwTypeError(expected,got,lvl)
-
-    local level = 1 + (level or 1)
-    local funcname = debug.getinfo(level+1,"n").name or "<unnamed?>"
-
-    votv.throwError("Type mismatch (Expected " .. expected .. ", got " .. got .. ") in function " .. funcname, lvl)
-
-end 
-
 votv.TypeNames = {
 	[TYPE_NONE]             = "Invalid type",
 	[TYPE_NIL]              = "nil",
@@ -95,7 +86,7 @@ function votv.checkLuaType(val, typ, argname)
         local src = info.short_src or "<unknown>"
         local line = info.currentline or 0
         local name = argname and ("'" .. argname .. "'") or "argument"
-        
+
         votv.throwError(
             "Type mismatch (" .. name .. ": expected " .. votv.typeName(typ) ..
             ", got " .. votv.getType(val) .. ") in function " .. funcname ..
